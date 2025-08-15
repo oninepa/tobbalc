@@ -46,6 +46,51 @@ class MainWindow(QMainWindow):
     def open_preprocess(self): self.open_window("전처리")
 
     def open_learn(self): self.open_window("학습")
+        self.sub_window = QWidget()
+        self.sub_window.setWindowTitle("학습")
+        self.sub_window.setGeometry(300, 300, 600, 400)
+
+        layout = QVBoxLayout()
+        label = QLabel("학습할 전처리 완료 폴더를 선택하세요")
+        
+        btn_select = QPushButton("폴더 선택")
+        self.selected_folder = None
+
+        def choose_folder():
+            folder = QFileDialog.getExistingDirectory(self, "학습 폴더 선택")
+            if folder:
+                self.selected_folder = folder
+                label.setText(f"✅ 선택된 폴더:\n{os.path.basename(folder)}")
+
+        btn_select.clicked.connect(choose_folder)
+
+        btn_start = QPushButton("학습 시작")
+        log_area = QLabel("로그: 대기 중...")
+        log_area.setWordWrap(True)
+
+        def run_learn():
+            if not self.selected_folder:
+                log_area.setText("❌ 오류: 폴더를 선택하세요")
+                return
+            try:
+                subprocess.run(["python", "modules/learner/extract_rules.py", self.selected_folder], check=True)
+                final_rule = os.path.join("rules", "rules_final.json")
+                os.makedirs("rules", exist_ok=True)
+                with open(final_rule, "w", encoding="utf-8") as f:
+                    json.dump({"last_updated": self.selected_folder}, f, indent=2, ensure_ascii=False)
+                log_area.setText(f"✅ 학습 완료!\n\n🟢 규칙 추출됨\n🟢 최종 규칙 저장:\n{final_rule}")
+            except Exception as e:
+                log_area.setText(f"❌ 학습 실패:\n{str(e)}")
+
+        btn_start.clicked.connect(run_learn)
+
+        layout.addWidget(label)
+        layout.addWidget(btn_select)
+        layout.addWidget(btn_start)
+        layout.addWidget(log_area)
+        self.sub_window.setLayout(layout)
+        self.sub_window.show()
+
     def open_settings(self): self.open_window("기타 설정")
 
     def open_preprocess(self):
