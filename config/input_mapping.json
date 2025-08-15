@@ -1,0 +1,54 @@
+{
+  "actions": {
+    "attack": {
+      "keywords": ["공격", "때려", "죽여", "빨리", "빨리가"],
+      "keyboard": "space",
+      "joystick": "A"
+    },
+    "special": {
+      "keywords": ["슈퍼", "파워", "변신", "특별공격"],
+      "keyboard": "e",
+      "joystick": "right_trigger"
+    },
+    "make_friend": {
+      "keywords": ["친구해", "친구", "친구버튼"],
+      "keyboard": "b",
+      "joystick": "y"
+    },
+    "break_friend": {
+      "keywords": ["친구 끊어", "친구를 끊어", "친구삭제", "다시 y"],
+      "keyboard": "b",
+      "joystick": "y"
+    },
+    "toggle_map": {
+      "keywords": ["지도 크게", "지도 켜", "지도", "지도 작게", "지도 꺼"],
+      "keyboard": "m",
+      "joystick": "b"
+    },
+    "swap_weapon": {
+      "keywords": ["무기 바꿔", "무기 교체", "무기"],
+      "keyboard": "c",
+      "joystick": "x"
+    },
+    "move_up": {
+      "keywords": ["위로", "위"],
+      "keyboard": "w",
+      "joystick": "left_stick_up"
+    },
+    "move_down": {
+      "keywords": ["아래로", "아래"],
+      "keyboard": "s",
+      "joystick": "left_stick_down"
+    },
+    "move_left": {
+      "keywords": ["왼쪽", "좌측"],
+      "keyboard": "a",
+      "joystick": "left_stick_left"
+    },
+    "move_right": {
+      "keywords": ["오른쪽", "우측"],
+      "keyboard": "d",
+      "joystick": "left_stick_right"
+    }
+  }
+}

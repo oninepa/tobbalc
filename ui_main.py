@@ -1,9 +1,17 @@
 # ui_main.py
-import subprocess  # 맨 위에 추가
-import os  # 맨 위에 추가
 import sys
-from PySide6.QtWidgets import QFileDialog
+import os
+import subprocess
+import threading
+import json
+
+# PySide6 임포트 추가
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QPushButton, QVBoxLayout,
+    QWidget, QLabel, QFileDialog
+)
 from PySide6.QtCore import Qt
+
 
 class SubWindow(QWidget):
     def __init__(self, title):
@@ -13,6 +21,7 @@ class SubWindow(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(QLabel(f"{title} 창 - 준비 중", self))
         self.setLayout(layout)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -64,20 +73,23 @@ class MainWindow(QMainWindow):
         def toggle_terminal():
             self.terminal_shown = not self.terminal_shown
             btn_toggle.setText("🔽 창작게" if self.terminal_shown else "🔲 창크게")
-            # 실제 터미널은 별도 창으로 안 띄우지만, 시각적 효과만
             self.bot_action.setText(f"터미널 {'보임' if self.terminal_shown else '숨김'}")
 
         btn_toggle.clicked.connect(toggle_terminal)
 
-        # 봇 제어 (더미)
+        # 봇 제어
         self.bot_process = None
 
         def start_bot():
-            if hasattr(self, 'bot_process') and self.bot_process and self.bot_process.is_alive():
+            if self.bot_process and self.bot_process.is_alive():
                 return
             self.bot_status.setText("🟢 상태: 실행 중")
             self.bot_action.setText("봇이 플레이 시작")
-            self.bot_process = threading.Thread(target=lambda: print("봇 실행 중..."))
+
+            def run():
+                print("봇 실행 중...")  # 실제 bot_engine.py 호출 가능
+
+            self.bot_process = threading.Thread(target=run, daemon=True)
             self.bot_process.start()
 
         def pause_bot():
@@ -101,18 +113,67 @@ class MainWindow(QMainWindow):
         self.bot_window.setLayout(layout)
         self.bot_window.show()
 
+    def open_record(self):
+        self.open_window("녹화")
 
-    def open_record(self): self.open_window("녹화")
-    def open_preprocess(self): self.open_window("전처리")
-        
-    def open_learn(self): self.open_window("학습")
+    def open_window(self, title):
+        self.sub_window = SubWindow(title)
+        self.sub_window.show()
+
+    def open_preprocess(self):
+        self.sub_window = QWidget()
+        self.sub_window.setWindowTitle("전처리")
+        self.sub_window.setGeometry(300, 300, 600, 400)
+
+        layout = QVBoxLayout()
+        label = QLabel("전처리할 녹화 폴더를 선택하세요")
+
+        btn_select = QPushButton("폴더 선택")
+        self.selected_folder = None
+
+        def choose_folder():
+            folder = QFileDialog.getExistingDirectory(self, "녹화 폴더 선택")
+            if folder:
+                self.selected_folder = folder
+                label.setText(f"✅ 선택된 폴더:\n{os.path.basename(folder)}")
+
+        btn_select.clicked.connect(choose_folder)
+
+        btn_start = QPushButton("전처리 시작")
+        log_area = QLabel("로그: 대기 중...")
+        log_area.setWordWrap(True)
+
+        def run_preprocess():
+            if not self.selected_folder:
+                log_area.setText("❌ 오류: 폴더를 선택하세요")
+                return
+            try:
+                subprocess.run(["python", "modules/preprocessor/preprocess_qwen.py", self.selected_folder], check=True)
+                log_area.setText(
+                    f"✅ 전처리 성공!\n\n"
+                    f"🟢 음성 분석 완료\n"
+                    f"🟢 보정된 결과 저장:\n{os.path.join(self.selected_folder, 'voice_google.json')}"
+                )
+            except Exception as e:
+                log_area.setText(f"❌ 전처리 실패:\n{str(e)}")
+
+        btn_start.clicked.connect(run_preprocess)
+
+        layout.addWidget(label)
+        layout.addWidget(btn_select)
+        layout.addWidget(btn_start)
+        layout.addWidget(log_area)
+        self.sub_window.setLayout(layout)
+        self.sub_window.show()
+
+    def open_learn(self):
         self.sub_window = QWidget()
         self.sub_window.setWindowTitle("학습")
         self.sub_window.setGeometry(300, 300, 600, 400)
 
         layout = QVBoxLayout()
         label = QLabel("학습할 전처리 완료 폴더를 선택하세요")
-        
+
         btn_select = QPushButton("폴더 선택")
         self.selected_folder = None
 
@@ -151,54 +212,33 @@ class MainWindow(QMainWindow):
         self.sub_window.setLayout(layout)
         self.sub_window.show()
 
-    def open_settings(self): self.open_window("기타 설정")
+    def open_settings(self):
+        self.settings_window = QWidget()
+        self.settings_window.setWindowTitle("기타 설정")
+        self.settings_window.setGeometry(300, 300, 400, 300)
 
-    def open_preprocess(self):
-         self.sub_window = QWidget()
-         self.sub_window.setWindowTitle("전처리")
-         self.sub_window.setGeometry(300, 300, 600, 400)
+        layout = QVBoxLayout()
 
-         layout = QVBoxLayout()
-         label = QLabel("전처리할 녹화 폴더를 선택하세요")
-    
-        btn_select = QPushButton("폴더 선택")
-        self.selected_folder = None
+        # 음성 인식 시작 버튼
+        btn_voice = QPushButton("🎤 음성 인식 시작")
+        status_label = QLabel("상태: 대기 중")
 
-        def choose_folder():
-             folder = QFileDialog.getExistingDirectory(self, "녹화 폴더 선택")
-             if folder:
-                 self.selected_folder = folder
-                 label.setText(f"✅ 선택된 폴더:\n{os.path.basename(folder)}")
+        def start_voice():
+            try:
+                from modules.utils.voice_listener import start_listening
+                start_listening()
+                status_label.setText("🟢 음성 인식 실행 중")
+                print("🟢 음성 인식 시작됨")
+            except Exception as e:
+                status_label.setText(f"🔴 실패: {str(e)}")
 
-         btn_select.clicked.connect(choose_folder)
+    btn_voice.clicked.connect(start_voice)
 
-         # 전처리 시작 버튼
-        btn_start = QPushButton("전처리 시작")
-        log_area = QLabel("로그: 대기 중...")
-        log_area.setWordWrap(True)
+    layout.addWidget(btn_voice)
+    layout.addWidget(status_label)
+    self.settings_window.setLayout(layout)
+    self.settings_window.show()
 
-        def run_preprocess():
-             if not self.selected_folder:
-                 log_area.setText("❌ 오류: 폴더를 선택하세요")
-                 return
-             try:
-                 # preprocess_qwen.py 실행
-                 subprocess.run(["python", "modules/preprocessor/preprocess_qwen.py", self.selected_folder], check=True)
-                 log_area.setText(f"✅ 전처리 성공!\n\n🟢 음성 분석 완료\n🟢 보정된 결과 저장:\n{os.path.join(self.selected_folder, 'voice_google.json')}")
-             except Exception as e:
-                   log_area.setText(f"❌ 전처리 실패:\n{str(e)}")
-
-             # 더미 처리 완료 메시지 (실제 전처리는 나중에 연결)
-             log_area.setText(f"🔍 분석 중...\n🎥 화면 변화 추출\n🎤 음성 로그 정제\n✅ 전처리 완료:\n{os.path.join(self.selected_folder, 'voice_clean.json')}")
-    
-        btn_start.clicked.connect(run_preprocess)
-
-        layout.addWidget(label)
-        layout.addWidget(btn_select)
-        layout.addWidget(btn_start)
-        layout.addWidget(log_area)
-        self.sub_window.setLayout(layout)
-        self.sub_window.show()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
