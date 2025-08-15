@@ -1,0 +1,39 @@
+{
+  "character": {
+    "id": "",
+    "level": 1,
+    "pet": "",
+    "hat": false,
+    "magnet": false
+  },
+  "mode": "중립적",
+  "lock": {
+    "weapon": false,
+    "shield": false
+  },
+  "targets": {
+    "attack": [],
+    "avoid": [],
+    "conditional": []
+  },
+  "friends": []
+}{
+  "character": {
+    "id": "",
+    "level": 1,
+    "pet": "",
+    "hat": false,
+    "magnet": false
+  },
+  "mode": "중립적",
+  "lock": {
+    "weapon": false,
+    "shield": false
+  },
+  "targets": {
+    "attack": [],
+    "avoid": [],
+    "conditional": []
+  },
+  "friends": []
+}
