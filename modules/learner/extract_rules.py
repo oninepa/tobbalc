@@ -1,85 +1,131 @@
-# extract_rules.py - Qwen을 이용해 음성+로그에서 규칙 추출
-import os
+# modules/recorder/record_final.py
+import mss
+import cv2
+import numpy as np
+import pyaudio
+import threading
 import json
-import subprocess
-import sys
+import time
+import os
+import datetime
+from pynput import keyboard, mouse
+from pathlib import Path
 
-def extract_rules_from_session(folder_path):
-    # 입력 파일 확인
-    voice_file = os.path.join(folder_path, "voice_google.json")
-    input_log = os.path.join(folder_path, "input_log.json")
-    
-    if not os.path.exists(voice_file):
-        print("❌ 음성 파일 없음")
-        return None
+# 현재 시간 기반 세션 이름 생성
+now = datetime.datetime.now()
+session_name = now.strftime("%Y%m%d_%H%M%S")
+BASE_DIR = Path(f"recordings/human/{session_name}")
+BASE_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(voice_file, "r", encoding="utf-8") as f:
-        voice_data = json.load(f)
+# 경로 설정
+OUTPUT_VIDEO = str(BASE_DIR / "game.mp4")
+OUTPUT_AUDIO = str(BASE_DIR / "voice_raw.wav")
+OUTPUT_LOG = str(BASE_DIR / "input_log.json")
 
-    # Qwen에 보낼 프롬프트
-    prompt = f"""
-다음은 게임 플레이 중 사용자가 말한 음성 인식 결과입니다.
-이 내용에서 게임 전략, 행동 규칙, 아이템 우선순위 등을 추출해 JSON 형식으로 반환하세요.
+# 설정
+WIDTH, HEIGHT = 1920, 1080
+FPS = 10
+RECORD_TIME = 60  # 초 단위 (ESC로도 종료 가능)
 
-예시 입력:
-"체력 낮은 적한테 스킬 A 써, 자석은 꼭 줍고, 모자 쓴 애는 친구야"
+# 화면 녹화
+def record_screen():
+    sct = mss.mss()
+    monitor = {"top": 0, "left": 0, "width": WIDTH, "height": HEIGHT}
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(OUTPUT_VIDEO, fourcc, FPS, (WIDTH, HEIGHT))
 
-예시 출력:
-{{
-  "rules": [
-    {{
-      "type": "skill",
-      "skill": "A",
-      "condition": "enemy.hp < 30%"
-    }},
-    {{
-      "type": "item",
-      "item": "자석",
-      "action": "수집"
-    }},
-    {{
-      "type": "relation",
-      "target": "모자 쓴 캐릭터",
-      "relation": "친구"
-    }}
-  ]
-}}
+    start_time = time.time()
+    while time.time() - start_time < RECORD_TIME:
+        img = np.array(sct.grab(monitor))
+        img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        out.write(img_bgr)
+        if cv2.waitKey(1) == 27:  # ESC 키로 종료
+            break
 
-지금 데이터:
-{voice_data['text']}
-"""
+    out.release()
+    print("✅ 화면 녹화 완료")
 
-    # Ollama CLI로 Qwen 실행
+# 음성 녹화
+def record_audio():
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1
+    RATE = 16000
+    CHUNK = 1024
+
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True, frames_per_buffer=CHUNK)
+    frames = []
+
+    print("🎤 음성 녹화 시작...")
+    for _ in range(0, int(RATE / CHUNK * RECORD_TIME)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+        # 실시간 중단 체크
+        if not running:
+            break
+
+    stream.stop_stream()
+    stream.close()
+    audio.terminate()
+
+    wf = wave.open(OUTPUT_AUDIO, 'wb')
+    wf.setnchannels(CHANNELS)
+    wf.setsampwidth(audio.get_sample_size(FORMAT))
+    wf.setframerate(RATE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+    print("✅ 음성 녹화 완료")
+
+# 키보드 로그
+key_log = []
+mouse_log = []
+running = True
+
+def on_press(key):
     try:
-        result = subprocess.run(
-            ["ollama", "run", "qwen:7b"],
-            input=prompt,
-            text=True,
-            encoding='utf-8',
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        # 간단한 더미 규칙 (실제 파싱은 나중에)
-        rules = {
-            "rules": [
-                {"type": "example", "description": "이 규칙은 테스트용입니다. 실제 파싱은 향후 구현"}
-            ]
-        }
-        
-        output_file = os.path.join(folder_path, "rules_raw.json")
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(rules, f, indent=2, ensure_ascii=False)
-        
-        print(f"✅ 규칙 추출 완료: {output_file}")
-        return rules
+        key_log.append({"time": time.time(), "event": "press", "key": key.char})
+    except AttributeError:
+        key_log.append({"time": time.time(), "event": "press", "key": str(key)})
 
-    except Exception as e:
-        print(f"❌ Qwen 실행 실패: {e}")
-        return None
+def on_release(key):
+    global running
+    if key == keyboard.Key.esc:
+        running = False
+        return False
+
+def record_keyboard():
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()
+
+def on_click(x, y, button, pressed):
+    if pressed:
+        mouse_log.append({"time": time.time(), "event": "click", "x": x, "y": y, "button": str(button)})
+
+def record_mouse():
+    with mouse.Listener(on_click=on_click) as listener:
+        listener.join()
+
+# 종료 후 저장
+def save_logs():
+    time.sleep(0.5)
+    with open(OUTPUT_LOG, "w", encoding="utf-8") as f:
+        json.dump({"keyboard": key_log, "mouse": mouse_log}, f, indent=2, ensure_ascii=False)
+    print(f"✅ 입력 로그 저장 완료: {OUTPUT_LOG}")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        extract_rules_from_session(sys.argv[1])
-    else:
-        print("사용법: python extract_rules.py [세션폴더]")
+    global running
+    running = True
+    print("🎥 녹화 시작 준비 중...")
+    time.sleep(2)
+
+    t1 = threading.Thread(target=record_screen)
+    t2 = threading.Thread(target=record_audio)
+    t3 = threading.Thread(target=record_keyboard)
+    t4 = threading.Thread(target=record_mouse)
+
+    t1.start(); t2.start(); t3.start(); t4.start()
+    t1.join(); t2.join(); t3.join(); t4.join()
+
+    save_logs()
+    print(f"🎉 모든 녹화 완료: {session_name}")
