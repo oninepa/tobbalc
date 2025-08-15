@@ -41,10 +41,70 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-    def open_bot(self): self.open_window("봇 실행")
+    def open_bot(self):
+        self.bot_window = QWidget()
+        self.bot_window.setWindowTitle("봇 실행")
+        self.bot_window.setGeometry(300, 300, 500, 300)
+
+        layout = QVBoxLayout()
+
+        # 상태 표시
+        self.bot_status = QLabel("현재 상태: 중지됨")
+        self.bot_action = QLabel("최근 행동: 없음")
+
+        # 버튼
+        btn_start = QPushButton("▶️ 봇 실행")
+        btn_pause = QPushButton("⏸️ 일시중지")
+        btn_stop = QPushButton("■ 완전 중지")
+        btn_toggle = QPushButton("🔲 창크게")
+
+        # 터미널 출력 제어
+        self.terminal_shown = False
+
+        def toggle_terminal():
+            self.terminal_shown = not self.terminal_shown
+            btn_toggle.setText("🔽 창작게" if self.terminal_shown else "🔲 창크게")
+            # 실제 터미널은 별도 창으로 안 띄우지만, 시각적 효과만
+            self.bot_action.setText(f"터미널 {'보임' if self.terminal_shown else '숨김'}")
+
+        btn_toggle.clicked.connect(toggle_terminal)
+
+        # 봇 제어 (더미)
+        self.bot_process = None
+
+        def start_bot():
+            if hasattr(self, 'bot_process') and self.bot_process and self.bot_process.is_alive():
+                return
+            self.bot_status.setText("🟢 상태: 실행 중")
+            self.bot_action.setText("봇이 플레이 시작")
+            self.bot_process = threading.Thread(target=lambda: print("봇 실행 중..."))
+            self.bot_process.start()
+
+        def pause_bot():
+            self.bot_status.setText("🟡 상태: 일시중지")
+            self.bot_action.setText("봇 일시중지됨")
+
+        def stop_bot():
+            self.bot_status.setText("🔴 상태: 중지됨")
+            self.bot_action.setText("봇 완전 중지됨")
+
+        btn_start.clicked.connect(start_bot)
+        btn_pause.clicked.connect(pause_bot)
+        btn_stop.clicked.connect(stop_bot)
+
+        layout.addWidget(self.bot_status)
+        layout.addWidget(self.bot_action)
+        layout.addWidget(btn_start)
+        layout.addWidget(btn_pause)
+        layout.addWidget(btn_stop)
+        layout.addWidget(btn_toggle)
+        self.bot_window.setLayout(layout)
+        self.bot_window.show()
+
+
     def open_record(self): self.open_window("녹화")
     def open_preprocess(self): self.open_window("전처리")
-
+        
     def open_learn(self): self.open_window("학습")
         self.sub_window = QWidget()
         self.sub_window.setWindowTitle("학습")
