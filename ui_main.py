@@ -1,4 +1,5 @@
 # ui_main.py
+import subprocess  # 맨 위에 추가
 import os  # 맨 위에 추가
 import sys
 from PySide6.QtWidgets import QFileDialog
@@ -75,6 +76,13 @@ class MainWindow(QMainWindow):
              if not self.selected_folder:
                  log_area.setText("❌ 오류: 폴더를 선택하세요")
                  return
+             try:
+                 # preprocess_qwen.py 실행
+                 subprocess.run(["python", "modules/preprocessor/preprocess_qwen.py", self.selected_folder], check=True)
+                 log_area.setText(f"✅ 전처리 성공!\n\n🟢 음성 분석 완료\n🟢 보정된 결과 저장:\n{os.path.join(self.selected_folder, 'voice_google.json')}")
+             except Exception as e:
+                   log_area.setText(f"❌ 전처리 실패:\n{str(e)}")
+
              # 더미 처리 완료 메시지 (실제 전처리는 나중에 연결)
              log_area.setText(f"🔍 분석 중...\n🎥 화면 변화 추출\n🎤 음성 로그 정제\n✅ 전처리 완료:\n{os.path.join(self.selected_folder, 'voice_clean.json')}")
     
