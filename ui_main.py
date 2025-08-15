@@ -1,8 +1,7 @@
 # ui_main.py
+import os  # 맨 위에 추가
 import sys
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel
-)
+from PySide6.QtWidgets import QFileDialog
 from PySide6.QtCore import Qt
 
 class SubWindow(QWidget):
@@ -44,11 +43,48 @@ class MainWindow(QMainWindow):
     def open_bot(self): self.open_window("봇 실행")
     def open_record(self): self.open_window("녹화")
     def open_preprocess(self): self.open_window("전처리")
+
     def open_learn(self): self.open_window("학습")
     def open_settings(self): self.open_window("기타 설정")
 
-    def open_window(self, title):
-        self.sub_window = SubWindow(title)
+    def open_preprocess(self):
+         self.sub_window = QWidget()
+         self.sub_window.setWindowTitle("전처리")
+         self.sub_window.setGeometry(300, 300, 600, 400)
+
+         layout = QVBoxLayout()
+         label = QLabel("전처리할 녹화 폴더를 선택하세요")
+    
+        btn_select = QPushButton("폴더 선택")
+        self.selected_folder = None
+
+        def choose_folder():
+             folder = QFileDialog.getExistingDirectory(self, "녹화 폴더 선택")
+             if folder:
+                 self.selected_folder = folder
+                 label.setText(f"✅ 선택된 폴더:\n{os.path.basename(folder)}")
+
+         btn_select.clicked.connect(choose_folder)
+
+         # 전처리 시작 버튼
+        btn_start = QPushButton("전처리 시작")
+        log_area = QLabel("로그: 대기 중...")
+        log_area.setWordWrap(True)
+
+        def run_preprocess():
+             if not self.selected_folder:
+                 log_area.setText("❌ 오류: 폴더를 선택하세요")
+                 return
+             # 더미 처리 완료 메시지 (실제 전처리는 나중에 연결)
+             log_area.setText(f"🔍 분석 중...\n🎥 화면 변화 추출\n🎤 음성 로그 정제\n✅ 전처리 완료:\n{os.path.join(self.selected_folder, 'voice_clean.json')}")
+    
+        btn_start.clicked.connect(run_preprocess)
+
+        layout.addWidget(label)
+        layout.addWidget(btn_select)
+        layout.addWidget(btn_start)
+        layout.addWidget(log_area)
+        self.sub_window.setLayout(layout)
         self.sub_window.show()
 
 if __name__ == "__main__":
