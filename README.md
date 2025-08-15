@@ -1,8 +1,5 @@
-# C:\oninepawork\project\tobbalc 에서 실행
-@'
-# Tobbalc - King of Crabs 자율 게임봇
-
-> "사용자가 가르치면, 봇이 진화한다"
+Tobbalc - Koc 자율 게임봇
+"사용자가 가르치면, 봇이 진화한다"
 
 오프라인, 경량화, 한국어 최적화 게임 자동화 봇  
 사용자의 음성 + 키보드 + 화면 녹화 → 학습 → 자율 행동
